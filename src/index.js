@@ -1,34 +1,94 @@
-import { getStudentApi } from "./api/getstudentsapi.js";
-import { createStudentApi } from "./api/createstudentapi.js"
-import { makeStudentsMarkUp } from "./markup/makestudentsmarkup.js";
+import { makeStudentsMarkup } from "../markup/markup.js";
 
-const students = document.querySelector("#students-table");
-const addButton = document.querySelector(".add-student");
+function renderStudents(students) {
+  studentsTable.innerHTML = makeStudentsMarkup(students);
+}
 
-addButton.addEventListener("submit", (event) => {
-  console.log(event.target)
-  event.preventDefault();
-  const studentName = event.target.nameForm.value;
-  const studentAge = event.target.ageForm.value;
-  const studentCourse = event.target.courseForm.value;
-  const studentSkills = event.target.skillsForm.value;
-  const studentEmail = event.target.emailForm.value;
-  const studentEnrolled = event.target.enrolledForm.value;
-  const student = {
-    name: studentName,
-    age: studentAge,
-    course: studentCourse,
-    skills: studentSkills,
-    email: studentEmail,
-    isEnrolled: studentEnrolled
-  };
-    createStudentApi(student);
-    getStudentApi().then((data) => {
-      students.innerHTML = makeStudentsMarkUp(data);
+const studentsTable = document.querySelector("#students-table");
+const getStudentsBtn = document.getElementById("get-students-btn");
+const addStudentForm = document.getElementById("add-student-form");
+const studentName = document.getElementById("name");
+const studentAge = document.getElementById("age");
+const studentCourse = document.getElementById("course");
+const studentSkill = document.getElementById("skills");
+const studentEmail = document.getElementById("email");
+const studentEnrolled = document.getElementById("isEnrolled");
+
+let id = null;
+
+function getStudents() {
+  fetch("http://localhost:3000/students")
+    .then((response) => response.json())
+    .then(renderStudents)
+}
+
+getStudentsBtn.addEventListener("click", getStudents);
+
+function updateStudents(id) {
+  fetch(`http://localhost:3000/students/${id}`)
+    .then((response) => response.json())
+    .then(({ name, age, course, skill, email, isEnrolled }) => {
+      studentName.value = name;
+      studentAge.value = age;
+      studentCourse.value = course;
+      studentSkill.value = skill;
+      studentEmail.value = email;
+      studentEnrolled.checked = isEnrolled;
+      id = id;
     });
+}
+
+addStudentForm.addEventListener("submit", (event) => {
+  const studentData = {
+    name: studentName.value.trim(),
+    age: studentAge.value,
+    course: studentCourse.value.trim(),
+    skill: studentSkill.value,
+    email: studentEmail.value.trim(),
+    isEnrolled: studentEnrolled.checked,
+  };
+
+  if (id) {
+    updateStudentsData(id, studentData)
+      .then(() => {
+        addStudentForm.reset();
+        getStudents();
+      })
+  } else {
+    addStudent(studentData)
+      .then(() => {
+        addStudentForm.reset();
+        getStudents();
+      })
+  }
 });
 
+function deleteStudent(id) {
+  return fetch(`http://localhost:3000/students/${id}`, {
+    method: "DELETE",
+  })
+}
 
-getStudentApi().then((data) => {
-  students.innerHTML = makeStudentsMarkUp(data);
+function addStudent(studentData) {
+  return fetch("http://localhost:3000/students", {
+    method: "POST",
+    body: JSON.stringify(studentData),
+  });
+}
+
+function updateStudentsData(id, studentData) {
+  return fetch(`http://localhost:3000/students/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(studentData),
+  });
+}
+
+studentsTable.addEventListener("click", (event) => {
+  if (event.target.classList.contains("delete")) {
+    const id = event.target.dataset.id;
+    deleteStudent(id).then(() => getStudents())
+  } else if (event.target.classList.contains("edit")) {
+    const id = event.target.dataset.id;
+    updateStudents(id);
+  }
 });
